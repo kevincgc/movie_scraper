@@ -1,8 +1,12 @@
+import time
+
 import pandas as pd
 import requests
 from bs4 import BeautifulSoup
 
+
 def get_user_rating_percent(title, year):
+    title = title.replace('&', 'and')
     query = f"{title} {year} movie"
     url = f"https://www.google.com/search?q={query}"
     headers = {
@@ -18,12 +22,22 @@ def get_user_rating_percent(title, year):
     else:
         return -1
 
-df = pd.read_csv('tmdb_top_20k_vote_count_240403.csv')
-sorted = df.nlargest(20000, 'vote_count')
 
-for batch in range(0, 200):
-    start_index = batch * 100
-    end_index = start_index + 100
+# configure------
+entries_per_batch = 50
+start = 24  # 1 indexed
+do_splits = 300
+# -----------------
+
+pd.set_option('display.max_columns', None)
+df = pd.read_csv('tmdb_top_20k_vote_count_240403.csv')
+total_size = 20000
+sorted = df.nlargest(total_size, 'vote_count')
+total_splits = total_size // entries_per_batch
+
+for batch in range(start - 1, start - 1 + do_splits):
+    start_index = batch * entries_per_batch
+    end_index = start_index + entries_per_batch
     top_batch = sorted.iloc[start_index:end_index]
 
     user_ratings = []
@@ -31,22 +45,12 @@ for batch in range(0, 200):
         title = row['title']
         year = row['release_date'][:4]
         user_rating_percent = get_user_rating_percent(title, year)
-        print(f'{index + start_index} {title} {user_rating_percent}')
-        user_ratings.append({'id': row['id'], 'title': title,'year': year, 'google_rating': user_rating_percent,
-                             'vote_average': row['vote_average'], 'vote_count': row['vote_count'], 'revenue': row['revenue'],
+        print(f'{index} {title} {user_rating_percent}')
+        user_ratings.append({'id': row['id'], 'title': title, 'year': year, 'google_rating': user_rating_percent,
+                             'vote_average': row['vote_average'], 'vote_count': row['vote_count'],
+                             'revenue': row['revenue'],
                              'runtime': row['runtime']})
 
     user_ratings_df = pd.DataFrame(user_ratings)
-    user_ratings_df.to_csv(f'ratings_{batch + 1}.csv', index=False)
-
-# user_ratings = []
-# for index, row in top_10[:10].iterrows():
-#     title = row['title']
-#     year = row['release_date'][:4]
-#     user_rating_percent = get_user_rating_percent(title, year)
-#     user_ratings.append({'id': row['id'], 'title': title,'year': year, 'google_rating': user_rating_percent,
-#                          'vote_average': row['vote_average'], 'vote_count': row['vote_count'], 'revenue': row['revenue'],
-#                          'runtime': row['runtime']})
-#
-# user_ratings_df = pd.DataFrame(user_ratings)
-# user_ratings_df.to_csv('top_10_with_google_rating.csv', index=False)
+    user_ratings_df.to_csv(f'ratings/ratings_{batch + 1}_of_{total_splits}.csv', index=False)
+    time.sleep(240)
