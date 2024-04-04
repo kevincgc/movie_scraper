@@ -2,7 +2,7 @@ import pandas as pd
 
 occurrences = {}
 
-for i in range(1, 401):
+for i in range(32, 401):
     file_name = f'ratings/ratings_{i}_of_400.csv'
     try:
         df = pd.read_csv(file_name)
